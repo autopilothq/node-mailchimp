@@ -1,29 +1,41 @@
 "use strict";
 
 var request = require('request'),
-    tar   = require('tar'),
-    zlib    = require('zlib'),
-    Promise = require("bluebird"),
-    _       = require('lodash');
+  tar   = require('tar'),
+  zlib    = require('zlib'),
+  Promise = require("bluebird"),
+  _       = require('lodash');
 
 
 Promise.config({
-    // Enables all warnings except forgotten return statements.
-    warnings: {
-        wForgottenReturn: false
-    }
+  // Enables all warnings except forgotten return statements.
+  warnings: {
+    wForgottenReturn: false
+  }
 });
 
-function Mailchimp (api_key) {
+function Mailchimp (token, type = 'api_key', dc) {
   var api_key_regex = /.+\-.+/
+  var access_token_regex = /[a-z0-9]${32}/
 
-  if (!api_key_regex.test(api_key)) {
-    throw new Error('missing or invalid api key: ' + api_key)
+  this.__type = type;
+
+  if (type === 'api_key') {
+    if (!api_key_regex.test(token)) {
+      throw new Error('missing or invalid api key: ' + token)
+    }
+    this.__api_key = token;
+    dc = this.__api_key.split('-')[1];
+  } else if (type === 'access_token') {
+    if (!access_token_regex.test(token)) {
+      throw new Error('missing or invalid api_key: ' + token);
+    }
+    if (!dc) {
+      throw new Error('missing dc.');
+    }
+    this.__access_token = token;
   }
-
-
-  this.__api_key = api_key;
-  this.__base_url = "https://"+ this.__api_key.split('-')[1] + ".api.mailchimp.com/3.0"
+  this.__base_url = "https://"+ dc + ".api.mailchimp.com/3.0"
 }
 
 var formatPath = function (path, path_params) {
@@ -47,13 +59,13 @@ var formatPath = function (path, path_params) {
   path = _.reduce(path_params, function (_path, value, param) {
     return _path.replace('{'+param+'}', value);
   }, path)
-  
+
   return path;
 
 }
 
 Mailchimp.prototype.get = function (options, query, done) {
-  options = _.clone(options) || {};
+  options = _.clone(options) || {};
 
   if (_.isString(options)) {
     options = {
@@ -79,7 +91,7 @@ Mailchimp.prototype.get = function (options, query, done) {
 }
 
 Mailchimp.prototype.post = function (options, body, done) {
-  options = _.clone(options) || {};
+  options = _.clone(options) || {};
 
   if (_.isString(options)) {
     options = {
@@ -105,7 +117,7 @@ Mailchimp.prototype.post = function (options, body, done) {
 }
 
 Mailchimp.prototype.patch = function (options, body, done) {
-  options = _.clone(options) || {};
+  options = _.clone(options) || {};
 
   if (_.isString(options)) {
     options = {
@@ -131,7 +143,7 @@ Mailchimp.prototype.patch = function (options, body, done) {
 }
 
 Mailchimp.prototype.put = function (options, body, done) {
-  options = _.clone(options) || {};
+  options = _.clone(options) || {};
 
   if (_.isString(options)) {
     options = {
@@ -157,7 +169,7 @@ Mailchimp.prototype.put = function (options, body, done) {
 }
 
 Mailchimp.prototype.delete = function (options, done) {
-  options = options || {};
+  options = options || {};
   options = _.clone(options)
   if (_.isString(options)) {
     options = {
@@ -198,9 +210,9 @@ Mailchimp.prototype._getAndUnpackBatchResults = function (response_body_url, opt
       entry.on('end', function () {
         results.push(JSON.parse(result_json));
 
-        
 
-        
+
+
       })
     });
 
@@ -211,7 +223,7 @@ Mailchimp.prototype._getAndUnpackBatchResults = function (response_body_url, opt
 
     parse.on('end', function (res) {
       results = _.flatten(results);
-      
+
       //TODO: implement linear sort uding operation id is linear from 0 to length-1
       results.sort(function (result_a, result_b) {
         return result_a.operation_id - result_b.operation_id
@@ -233,7 +245,7 @@ Mailchimp.prototype._getAndUnpackBatchResults = function (response_body_url, opt
         reject(new Error(err));
         return;
       }
-      
+
 
       if (response.statusCode != 200) {
         reject(Object.assign(new Error(), response.body));
@@ -257,11 +269,11 @@ Mailchimp.prototype._getAndUnpackBatchResults = function (response_body_url, opt
   })
 
 
-  
+
 }
 
 Mailchimp.prototype.batchWait = function (batch_id, done, opts) {
-  var mailchimp = this; 
+  var mailchimp = this;
 
   //If done is not a function, and no opts are given, second argument is the opts
   if (!opts && !_.isFunction(done)) {
@@ -275,7 +287,7 @@ Mailchimp.prototype.batchWait = function (batch_id, done, opts) {
   if (!opts.interval) {
     opts.interval = 2000
   }
-  
+
   //default unpack to true
   if (opts.unpack !== false) {
     opts.unpack = true;
@@ -305,7 +317,7 @@ Mailchimp.prototype.batchWait = function (batch_id, done, opts) {
 
           setTimeout(request, opts.interval);
 
-      }, reject)
+        }, reject)
     }
 
     request();
@@ -411,7 +423,7 @@ Mailchimp.prototype.batch = function (operations, done, opts) {
     method : 'post',
     path : '/batches',
     body : {
-      operations : _operations  
+      operations : _operations
     }
   })
 
@@ -453,7 +465,7 @@ Mailchimp.prototype.batch = function (operations, done, opts) {
 
   return promise
 
-  
+
 
 }
 
@@ -467,7 +479,7 @@ Mailchimp.prototype.request = function (options, done) {
 
     var path = formatPath(options.path, options.path_params);
     var method = options.method || 'get';
-    var body = options.body || {};
+    var body = options.body || {};
     var params = options.params;
     var query = options.query;
 
@@ -483,19 +495,26 @@ Mailchimp.prototype.request = function (options, done) {
       return;
     }
 
-    request({
+    var req = {
       method : method,
       url : mailchimp.__base_url + path,
-      auth : {
-        user : 'any',
-        password : mailchimp.__api_key
-      },
       json : body,
       qs : query,
       headers : {
         'User-Agent' : 'mailchimp-api-v3 : https://github.com/thorning/node-mailchimp'
       }
-    }, function (err, response) {
+    };
+
+    if (this.__type === 'api_key') {
+      req.auth = {
+        user : 'any',
+        password : mailchimp.__api_key
+      }
+    } else if (this.__type === 'access_token') {
+      req.headers.Authorization = 'Bearer ' + this.__access_token
+    }
+
+    request(req, function (err, response) {
 
       if (err) {
         reject(new Error(err))
