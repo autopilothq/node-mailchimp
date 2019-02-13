@@ -16,7 +16,7 @@ Promise.config({
 
 function Mailchimp (token, type = 'api_key', dc) {
   var api_key_regex = /.+\-.+/
-  var access_token_regex = /[a-z0-9]${32}/
+  var access_token_regex = /[a-z0-9]/
 
   this.__type = type;
 
@@ -308,7 +308,7 @@ Mailchimp.prototype.batchWait = function (batch_id, done, opts) {
       mailchimp.request(options)
         .then(function (result) {
           if (opts.verbose) {
-            console.log('batch status:', result.status, result.finished_operations + '/' + result.total_operations)
+            console.log('Mailchimp batch status:', result.status, result.finished_operations + '/' + result.total_operations)
           }
           if (result.status == 'finished') {
             resolve(result);
@@ -430,7 +430,7 @@ Mailchimp.prototype.batch = function (operations, done, opts) {
 
   if (opts.verbose) {
     promise = promise.then(function (result) {
-      console.log('Batch started with id:', result.id);
+      console.log('Mailchimp batch started with id:', result.id);
       return result
     })
   }
@@ -500,18 +500,16 @@ Mailchimp.prototype.request = function (options, done) {
       url : mailchimp.__base_url + path,
       json : body,
       qs : query,
-      headers : {
-        'User-Agent' : 'mailchimp-api-v3 : https://github.com/thorning/node-mailchimp'
-      }
+      headers: {}
     };
 
-    if (this.__type === 'api_key') {
+    if (mailchimp.__type === 'api_key') {
       req.auth = {
         user : 'any',
         password : mailchimp.__api_key
       }
-    } else if (this.__type === 'access_token') {
-      req.headers.Authorization = 'Bearer ' + this.__access_token
+    } else if (mailchimp.__type === 'access_token') {
+      req.headers.Authorization = 'OAuth ' + mailchimp.__access_token
     }
 
     request(req, function (err, response) {
@@ -525,8 +523,8 @@ Mailchimp.prototype.request = function (options, done) {
         reject(Object.assign(new Error(response.body ? response.body.detail : response.statusCode), response.body || response));
         return;
       }
-
       var result = response.body || {};
+
       result.statusCode = response.statusCode;
 
       resolve(result)
