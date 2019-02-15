@@ -308,7 +308,7 @@ Mailchimp.prototype.batchWait = function (batch_id, done, opts) {
       mailchimp.request(options)
         .then(function (result) {
           if (opts.verbose) {
-            console.log('Mailchimp batch status:', result.status, result.finished_operations + '/' + result.total_operations)
+            console.log(result.id, 'Mailchimp batch status:', result.status, result.finished_operations + '/' + result.total_operations)
           }
           if (result.status == 'finished') {
             resolve(result);
@@ -430,7 +430,7 @@ Mailchimp.prototype.batch = function (operations, done, opts) {
 
   if (opts.verbose) {
     promise = promise.then(function (result) {
-      console.log('Mailchimp batch started with id:', result.id);
+      console.log(result.id, 'Mailchimp batch started');
       return result
     })
   }
