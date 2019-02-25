@@ -501,7 +501,8 @@ Mailchimp.prototype.request = function (options, done) {
       url : mailchimp.__base_url + path,
       json : body,
       qs : query,
-      headers: {}
+      headers: {},
+      timeout: 60000
     };
 
     if (mailchimp.__type === 'api_key') {
