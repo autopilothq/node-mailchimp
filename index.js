@@ -300,7 +300,8 @@ Mailchimp.prototype.batchWait = function (batch_id, done, opts) {
 
   var options = {
     method : 'get',
-    path : '/batches/' + batch_id
+    path : '/batches/' + batch_id,
+    verbose : opts.verbose
   }
 
   var promise = new Promise(function (resolve, reject) {
@@ -517,6 +518,9 @@ Mailchimp.prototype.request = function (options, done) {
     request(req, function (err, response) {
 
       if (err) {
+        if (options.verbose) {
+          console.error(err)
+        }
         reject(new Error(err))
         return;
       }
