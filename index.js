@@ -471,6 +471,61 @@ Mailchimp.prototype.batch = function (operations, done, opts) {
 
 }
 
+Mailchimp.prototype.getBatchStatus = function (batch_id, opts) {
+  var mailchimp = this;
+
+  opts = _.clone(opts) || {};
+
+  //default unpack to true
+  if (opts.unpack !== false) {
+    opts.unpack = true;
+  }
+
+  //default verbose to true
+  if (opts.verbose !== false) {
+    opts.verbose = true;
+  }
+
+  var options = {
+    method : 'get',
+    path : '/batches/' + batch_id,
+    verbose : opts.verbose
+  }
+
+  var promise = new Promise(function (resolve, reject) {
+    var request = function () {
+      mailchimp.request(options)
+        .then(function (result) {
+          if (result.status == 'finished') {
+            console.log(result.id, 'Mailchimp batch finished:', result.status, result.finished_operations + '/' + result.total_operations, 'errored:', result.errored_operations + '/' + result.total_operations)
+          }
+          resolve(result);
+          return;
+
+        }, reject)
+        .catch(function (e) {
+          console.error('Mailchimp batch error:', e)
+        })
+    }
+
+    request();
+  })
+
+  if (opts.unpack) {
+    promise = promise.then(function (result) {
+
+      //in case the batch was empty, there is nothing to unpack (should no longer be hit)
+      if (result.total_operations == 0 || result.status !== 'finished') {
+        return [];
+      }
+
+      return mailchimp._getAndUnpackBatchResults(result.response_body_url, opts)
+    })
+  }
+
+  return promise
+}
+
 Mailchimp.prototype.request = function (options, done) {
   var mailchimp = this;
   var promise = new Promise(function(resolve, reject) {
