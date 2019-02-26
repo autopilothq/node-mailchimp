@@ -476,11 +476,6 @@ Mailchimp.prototype.getBatchStatus = function (batch_id, opts) {
 
   opts = _.clone(opts) || {};
 
-  //default unpack to true
-  if (opts.unpack !== false) {
-    opts.unpack = true;
-  }
-
   //default verbose to true
   if (opts.verbose !== false) {
     opts.verbose = true;
@@ -510,18 +505,6 @@ Mailchimp.prototype.getBatchStatus = function (batch_id, opts) {
 
     request();
   })
-
-  if (opts.unpack) {
-    promise = promise.then(function (result) {
-
-      //in case the batch was empty, there is nothing to unpack (should no longer be hit)
-      if (result.total_operations == 0 || result.status !== 'finished') {
-        return [];
-      }
-
-      return mailchimp._getAndUnpackBatchResults(result.response_body_url, opts)
-    })
-  }
 
   return promise
 }
